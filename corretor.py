@@ -15,17 +15,21 @@ import pprint
 
 from colorama import init, Fore
 
+
 def green(s):
     return Fore.GREEN + str(s) + Fore.RESET
 
+
 def red(s):
     return Fore.RED + str(s) + Fore.RESET
+
 
 def test_result(b):
     if b:
         return green(b)
     else:
         return red(b)
+
 
 class BaseTSP:
     def parse_input(self, inp):
@@ -82,15 +86,16 @@ class BaseTSP:
 
 @nb.jit
 def tamanho_tour_nb(order, distances):
-        tour = 0
-        last = order[0]
-        N = len(order)
-        for i in range(1, N):
-            tour += distances[last, order[i]]
-            last = order[i]
-        tour += distances[order[N-1], order[0]]
+    tour = 0
+    last = order[0]
+    N = len(order)
+    for i in range(1, N):
+        tour += distances[last, order[i]]
+        last = order[i]
+    tour += distances[order[N-1], order[0]]
 
-        return tour
+    return tour
+
 
 def tem_troca_py(order, distance, distances):
     N = len(order)
@@ -105,12 +110,15 @@ def tem_troca_py(order, distance, distances):
 
     return False, 0, 0, 0.0
 
+
 tem_troca_nb = nb.jit(tem_troca_py)
+
 
 class TesteBuscaLocal(ProgramTest, BaseTSP):
     def tem_troca(self, order, distance, distances):
         distance = self.tamanho_tour(order, distances)
-        ret, i, j, new_distance = tem_troca_nb(nbList(order), distance, distances)
+        ret, i, j, new_distance = tem_troca_nb(
+            nbList(order), distance, distances)
         if ret:
             print('Troca encontrada: ', i, j)
             print('Melhoria:', distance, '->', new_distance)
@@ -155,8 +163,10 @@ class TesteBuscaLocal(ProgramTest, BaseTSP):
         for i, sol in enumerate(solutions):
             dist_calculada = self.tamanho_tour(sol[1], distances)
             if not np.isclose(dist_calculada, sol[0]):
-                print(f'Caminho incorreto na linha {i}. Mostrada {sol[0]}, calculada {dist_calculada}')
-                print(sol[1], self.tamanho_tour(sol[1], distances), tamanho_tour_nb(sol[1], distances))
+                print(
+                    f'Caminho incorreto na linha {i}. Mostrada {sol[0]}, calculada {dist_calculada}')
+                print(sol[1], self.tamanho_tour(sol[1], distances),
+                      tamanho_tour_nb(sol[1], distances))
                 return False
         return True
 
@@ -179,18 +189,21 @@ class TesteBuscaExaustiva(ProgramTest, CheckStderrMixin, BaseTSP):
     def test_tour_otimo(self, test, stdout, stderr):
         N, points, distances = self.parse_input(test.input)
         distance, opt, order = self.parse_output(stdout)
-        correct_distance, correct_opt, correct_order = self.parse_output(test.output)
+        correct_distance, correct_opt, correct_order = self.parse_output(
+            test.output)
         return np.isclose(correct_distance, distance)
 
     def test_opt_1(self, test, stdout, stderr):
         distance, opt, order = self.parse_output(stdout)
         return int(opt) == 1
 
+
 class TesteBuscaExaustivaPerf(ProgramTest, BaseTSP):
     def test_tour_otimo(self, test, stdout, stderr):
         N, points, distances = self.parse_input(test.input)
         distance, opt, order = self.parse_output(stdout)
-        correct_distance, correct_opt, correct_order = self.parse_output(test.output)
+        correct_distance, correct_opt, correct_order = self.parse_output(
+            test.output)
         return np.isclose(correct_distance, distance)
 
     def test_opt_1(self, test, stdout, stderr):
@@ -201,17 +214,22 @@ class TesteBuscaExaustivaPerf(ProgramTest, BaseTSP):
 class TestePerformance(ProgramTest, BaseTSP):
     pass
 
+
 class TesteMultiCorePequeno(TesteBuscaLocal, CheckMultiCorePerformance):
     pass
+
 
 def compila_programa(ext, nome, flags, nvcc=False):
     compilador = 'g++'
     if nvcc:
         compilador = 'nvcc'
-    arquivos = ' '.join([arq for arq in os.listdir('.') if arq.split('.')[-1] == ext])
-    ret = os.system(f'{compilador} {arquivos} -std=c++11 -O3 {flags} -o {nome} > /dev/null 2> /dev/null')
-    if ret != 0 :
+    arquivos = ' '.join([arq for arq in os.listdir('.')
+                        if arq.split('.')[-1] == ext])
+    ret = os.system(
+        f'{compilador} {arquivos} -std=c++11 -O3 {flags} -o {nome} > /dev/null 2> /dev/null')
+    if ret != 0:
         raise IOError(f'Erro de compilação do arquivo {ext} em {os.getcwd()}!')
+
 
 def testa_heuristico():
     if os.path.exists('heuristico'):
@@ -223,109 +241,121 @@ def testa_heuristico():
         os.chdir('..')
         return res
 
+
 def testa_busca_local_sequencial():
     if os.path.exists('busca-local'):
         os.chdir('busca-local')
         compila_programa('cpp', 'busca-local', '')
         tests = TestConfiguration.from_pattern('.', 'in*.txt', 'out*txt',
-                                            environ={
-                                                'DEBUG': '1'
-                                            }, time_limit=1800)
+                                               environ={
+                                                   'DEBUG': '1'
+                                               }, time_limit=1800)
         tester = TesteBuscaLocal('./busca-local', tests)
         res = tester.main()
         os.chdir('..')
         return res
+
 
 def testa_busca_exaustiva():
     if os.path.exists('busca-exaustiva'):
         os.chdir('busca-exaustiva')
         compila_programa('cpp', 'busca-global', '')
         tests = TestConfiguration.from_pattern('.', 'in*.txt', 'out*txt',
-                                            'err*txt', environ={
-                                                'DEBUG': '1'
-                                            })
+                                               'err*txt', environ={
+                                                   'DEBUG': '1'
+                                               })
         tester = TesteBuscaExaustiva('./busca-global', tests)
         res = tester.main()
         os.chdir('..')
         return res
+
 
 def testa_busca_local_omp():
     if os.path.exists('busca-local'):
         os.chdir('busca-local')
         compila_programa('cpp', 'busca-local-paralela', '-fopenmp')
         tests = TestConfiguration.from_pattern('.', 'in*.txt', 'out*txt',
-                                            environ={
-                                                'DEBUG': '1'
-                                            }, time_limit=1800)
+                                               environ={
+                                                   'DEBUG': '1'
+                                               }, time_limit=1800)
         files_multicore = [f'./in-{i}.txt' for i in range(5, 10)]
-        omp_tests = {k:v for k, v in tests.items() if k in files_multicore}
+        omp_tests = {k: v for k, v in tests.items() if k in files_multicore}
         del omp_tests['./in-7.txt']
         del omp_tests['./in-8.txt']
-        
-        teste_simples = TesteMultiCorePequeno('./busca-local-paralela', omp_tests)
+
+        teste_simples = TesteMultiCorePequeno(
+            './busca-local-paralela', omp_tests)
         res = teste_simples.main()
         os.chdir('..')
         return res
+
 
 def testa_busca_local_gpu():
     if os.path.exists('busca-local'):
         os.chdir('busca-local')
         compila_programa('cu', 'busca-local-gpu', '', True)
         tests = TestConfiguration.from_pattern('.', 'in*.txt', 'out*txt',
-                                            environ={
-                                                'DEBUG': '1'
-                                            })
+                                               environ={
+                                                   'DEBUG': '1'
+                                               })
         tester = TesteBuscaLocal('./busca-local-gpu', tests)
 
         perf_tests = {}
         perf_tests['in6.txt'] = TestConfiguration.from_file('in-6.txt',
-                                                    '',
-                                                    check_stderr=False,
-                                                    environ={'DEBUG': '0'},
-                                                    time_limit=30)
+                                                            '',
+                                                            check_stderr=False,
+                                                            environ={
+                                                                'DEBUG': '0'},
+                                                            time_limit=30)
         perf_tests['in11.txt'] = TestConfiguration.from_file('perf-in-11.txt',
-                                                    '',
-                                                    check_stderr=False,
-                                                    environ={'DEBUG': '0'},
-                                                    time_limit=30)
+                                                             '',
+                                                             check_stderr=False,
+                                                             environ={
+                                                                 'DEBUG': '0'},
+                                                             time_limit=30)
 
         perf_tester = TestePerformance('./busca-local-gpu', perf_tests)
         res = tester.main() and perf_tester.main()
         os.chdir('..')
         return res
 
+
 def testa_busca_local_gpu2():
     if os.path.exists('busca-local'):
         os.chdir('busca-local')
         compila_programa('cu', 'busca-local-gpu2', '', True)
         tests = TestConfiguration.from_pattern('.', 'in*.txt', 'out*txt',
-                                            environ={
-                                                'DEBUG': '1'
-                                            })
+                                               environ={
+                                                   'DEBUG': '1'
+                                               })
         tester = TesteBuscaLocal('./busca-local-gpu2', tests)
 
         perf_tests = {}
         perf_tests['in6.txt'] = TestConfiguration.from_file('in-6.txt',
-                                                    '',
-                                                    check_stderr=False,
-                                                    environ={'DEBUG': '0'},
-                                                    time_limit=10)
+                                                            '',
+                                                            check_stderr=False,
+                                                            environ={
+                                                                'DEBUG': '0'},
+                                                            time_limit=10)
         perf_tests['in11.txt'] = TestConfiguration.from_file('perf-in-11.txt',
-                                                        '',
-                                                        check_stderr=False,
-                                                        environ={'DEBUG': '0'},
-                                                        time_limit=9)
+                                                             '',
+                                                             check_stderr=False,
+                                                             environ={
+                                                                 'DEBUG': '0'},
+                                                             time_limit=9)
 
         perf_tests['in12.txt'] = TestConfiguration.from_file('perf-in-12.txt',
-                                                        '',
-                                                        check_stderr=False,
-                                                        environ={'DEBUG': '0'},
-                                                        time_limit=65)
+                                                             '',
+                                                             check_stderr=False,
+                                                             environ={
+                                                                 'DEBUG': '0'},
+                                                             time_limit=65)
 
         perf_tester = TestePerformance('./busca-local-gpu2', perf_tests)
         res = tester.main() and perf_tester.main()
         os.chdir('..')
         return res
+
 
 def testa_busca_local_perf():
     if os.path.exists('busca-local'):
@@ -333,27 +363,31 @@ def testa_busca_local_perf():
         compila_programa('cpp', 'busca-local-perf', '')
         performance_tests = {}
         performance_tests['in10.txt'] = TestConfiguration.from_file('in-10.txt',
-                                                        '',
-                                                        check_stderr=False,
-                                                        environ={'DEBUG': '0'},
-                                                        time_limit=0.5)
+                                                                    '',
+                                                                    check_stderr=False,
+                                                                    environ={
+                                                                        'DEBUG': '0'},
+                                                                    time_limit=0.5)
 
         performance_tests['in11.txt'] = TestConfiguration.from_file('perf-in-11.txt',
-                                                        '',
-                                                        check_stderr=False,
-                                                        environ={'DEBUG': '0'},
-                                                        time_limit=9)
+                                                                    '',
+                                                                    check_stderr=False,
+                                                                    environ={
+                                                                        'DEBUG': '0'},
+                                                                    time_limit=9)
 
         performance_tests['in12.txt'] = TestConfiguration.from_file('perf-in-12.txt',
-                                                        '',
-                                                        check_stderr=False,
-                                                        environ={'DEBUG': '0'},
-                                                        time_limit=180)
+                                                                    '',
+                                                                    check_stderr=False,
+                                                                    environ={
+                                                                        'DEBUG': '0'},
+                                                                    time_limit=180)
 
         perf_tester = TestePerformance('./busca-local-perf', performance_tests)
         res = perf_tester.main()
         os.chdir('..')
-        return res 
+        return res
+
 
 def testa_busca_exaustiva_perf1():
     if os.path.exists('busca-exaustiva'):
@@ -361,25 +395,30 @@ def testa_busca_exaustiva_perf1():
         compila_programa('cpp', 'busca-global-perf', '-fopenmp')
         performance_tests = {}
         performance_tests['in-5.txt'] = TestConfiguration.from_file('in-5.txt',
-                                                        'out-5.txt',
-                                                        check_stderr=False,
-                                                        environ={'DEBUG': '0'},
-                                                        time_limit=1)
+                                                                    'out-5.txt',
+                                                                    check_stderr=False,
+                                                                    environ={
+                                                                        'DEBUG': '0'},
+                                                                    time_limit=1)
         performance_tests['in-6.txt'] = TestConfiguration.from_file('in-6.txt',
-                                                        'out-6.txt',
-                                                        check_stderr=False,
-                                                        environ={'DEBUG': '0'},
-                                                        time_limit=1)
+                                                                    'out-6.txt',
+                                                                    check_stderr=False,
+                                                                    environ={
+                                                                        'DEBUG': '0'},
+                                                                    time_limit=1)
         performance_tests['in-7.txt'] = TestConfiguration.from_file('in-7.txt',
-                                                        'out-7.txt',
-                                                        check_stderr=False,
-                                                        environ={'DEBUG': '0'},
-                                                        time_limit=5)
+                                                                    'out-7.txt',
+                                                                    check_stderr=False,
+                                                                    environ={
+                                                                        'DEBUG': '0'},
+                                                                    time_limit=5)
 
-        perf_tester = TesteBuscaExaustivaPerf('./busca-global-perf', performance_tests)
+        perf_tester = TesteBuscaExaustivaPerf(
+            './busca-global-perf', performance_tests)
         res = perf_tester.main()
         os.chdir('..')
         return res
+
 
 def testa_busca_exaustiva_perf2():
     if os.path.exists('busca-exaustiva'):
@@ -387,25 +426,30 @@ def testa_busca_exaustiva_perf2():
         compila_programa('cpp', 'busca-global-perf2', '-fopenmp')
         performance_tests = {}
         performance_tests['in-7.txt'] = TestConfiguration.from_file('in-7.txt',
-                                                        'out-7.txt',
-                                                        check_stderr=False,
-                                                        environ={'DEBUG': '0'},
-                                                        time_limit=1)
+                                                                    'out-7.txt',
+                                                                    check_stderr=False,
+                                                                    environ={
+                                                                        'DEBUG': '0'},
+                                                                    time_limit=1)
         performance_tests['perf-in-8.txt'] = TestConfiguration.from_file('perf-in-8.txt',
-                                                        'perf-out-8.txt',
-                                                        check_stderr=False,
-                                                        environ={'DEBUG': '0'},
-                                                        time_limit=2)
+                                                                         'perf-out-8.txt',
+                                                                         check_stderr=False,
+                                                                         environ={
+                                                                             'DEBUG': '0'},
+                                                                         time_limit=2)
         performance_tests['perf-in-9.txt'] = TestConfiguration.from_file('perf-in-9.txt',
-                                                        'perf-out-9.txt',
-                                                        check_stderr=False,
-                                                        environ={'DEBUG': '0'},
-                                                        time_limit=30)
+                                                                         'perf-out-9.txt',
+                                                                         check_stderr=False,
+                                                                         environ={
+                                                                             'DEBUG': '0'},
+                                                                         time_limit=30)
 
-        perf_tester = TesteBuscaExaustivaPerf('./busca-global-perf2', performance_tests)
+        perf_tester = TesteBuscaExaustivaPerf(
+            './busca-global-perf2', performance_tests)
         res = perf_tester.main()
         os.chdir('..')
         return res
+
 
 def testa_busca_exaustiva_perf3():
     if os.path.exists('busca-exaustiva'):
@@ -413,30 +457,36 @@ def testa_busca_exaustiva_perf3():
         compila_programa('cpp', 'busca-global-perf3', '-fopenmp')
         performance_tests = {}
         performance_tests['in-7.txt'] = TestConfiguration.from_file('in-7.txt',
-                                                        'out-7.txt',
-                                                        check_stderr=False,
-                                                        environ={'DEBUG': '0'},
-                                                        time_limit=1)
+                                                                    'out-7.txt',
+                                                                    check_stderr=False,
+                                                                    environ={
+                                                                        'DEBUG': '0'},
+                                                                    time_limit=1)
         performance_tests['perf-in-8.txt'] = TestConfiguration.from_file('perf-in-8.txt',
-                                                        'perf-out-8.txt',
-                                                        check_stderr=False,
-                                                        environ={'DEBUG': '0'},
-                                                        time_limit=1)
+                                                                         'perf-out-8.txt',
+                                                                         check_stderr=False,
+                                                                         environ={
+                                                                             'DEBUG': '0'},
+                                                                         time_limit=1)
         performance_tests['perf-in-9.txt'] = TestConfiguration.from_file('perf-in-9.txt',
-                                                        'perf-out-9.txt',
-                                                        check_stderr=False,
-                                                        environ={'DEBUG': '0'},
-                                                        time_limit=10)
+                                                                         'perf-out-9.txt',
+                                                                         check_stderr=False,
+                                                                         environ={
+                                                                             'DEBUG': '0'},
+                                                                         time_limit=10)
         performance_tests['perf-in-10.txt'] = TestConfiguration.from_file('perf-in-10.txt',
-                                                        'perf-out-10.txt',
-                                                        check_stderr=False,
-                                                        environ={'DEBUG': '0'},
-                                                        time_limit=25)
+                                                                          'perf-out-10.txt',
+                                                                          check_stderr=False,
+                                                                          environ={
+                                                                              'DEBUG': '0'},
+                                                                          time_limit=25)
 
-        perf_tester = TesteBuscaExaustivaPerf('./busca-global-perf3', performance_tests)
+        perf_tester = TesteBuscaExaustivaPerf(
+            './busca-global-perf3', performance_tests)
         res = perf_tester.main()
         os.chdir('..')
         return res
+
 
 def testa_busca_exaustiva_perf4():
     if os.path.exists('busca-exaustiva'):
@@ -444,34 +494,41 @@ def testa_busca_exaustiva_perf4():
         compila_programa('cpp', 'busca-global-perf4', '-fopenmp')
         performance_tests = {}
         performance_tests['in-7.txt'] = TestConfiguration.from_file('in-7.txt',
-                                                        'out-7.txt',
-                                                        check_stderr=False,
-                                                        environ={'DEBUG': '0'},
-                                                        time_limit=1)
+                                                                    'out-7.txt',
+                                                                    check_stderr=False,
+                                                                    environ={
+                                                                        'DEBUG': '0'},
+                                                                    time_limit=1)
         performance_tests['perf-in-8.txt'] = TestConfiguration.from_file('perf-in-8.txt',
-                                                        'perf-out-8.txt',
-                                                        check_stderr=False,
-                                                        environ={'DEBUG': '0'},
-                                                        time_limit=1)
+                                                                         'perf-out-8.txt',
+                                                                         check_stderr=False,
+                                                                         environ={
+                                                                             'DEBUG': '0'},
+                                                                         time_limit=1)
         performance_tests['perf-in-9.txt'] = TestConfiguration.from_file('perf-in-9.txt',
-                                                        'perf-out-9.txt',
-                                                        check_stderr=False,
-                                                        environ={'DEBUG': '0'},
-                                                        time_limit=2)
+                                                                         'perf-out-9.txt',
+                                                                         check_stderr=False,
+                                                                         environ={
+                                                                             'DEBUG': '0'},
+                                                                         time_limit=2)
         performance_tests['perf-in-10.txt'] = TestConfiguration.from_file('perf-in-10.txt',
-                                                        'perf-out-10.txt',
-                                                        check_stderr=False,
-                                                        environ={'DEBUG': '0'},
-                                                        time_limit=3)
+                                                                          'perf-out-10.txt',
+                                                                          check_stderr=False,
+                                                                          environ={
+                                                                              'DEBUG': '0'},
+                                                                          time_limit=3)
         performance_tests['perf-in-11.txt'] = TestConfiguration.from_file('perf-in-11.txt',
-                                                        'perf-out-11.txt',
-                                                        check_stderr=False,
-                                                        environ={'DEBUG': '0'},
-                                                        time_limit=3)
-        perf_tester = TesteBuscaExaustivaPerf('./busca-global-perf4', performance_tests)
+                                                                          'perf-out-11.txt',
+                                                                          check_stderr=False,
+                                                                          environ={
+                                                                              'DEBUG': '0'},
+                                                                          time_limit=3)
+        perf_tester = TesteBuscaExaustivaPerf(
+            './busca-global-perf4', performance_tests)
         res = perf_tester.main()
         os.chdir('..')
         return res
+
 
 def testa_busca_exaustiva_perf5():
     if os.path.exists('busca-exaustiva'):
@@ -479,42 +536,50 @@ def testa_busca_exaustiva_perf5():
         compila_programa('cpp', 'busca-global-perf5', '-fopenmp')
         performance_tests = {}
         performance_tests['in-7.txt'] = TestConfiguration.from_file('in-7.txt',
-                                                        'out-7.txt',
-                                                        check_stderr=False,
-                                                        environ={'DEBUG': '0'},
-                                                        time_limit=1)
+                                                                    'out-7.txt',
+                                                                    check_stderr=False,
+                                                                    environ={
+                                                                        'DEBUG': '0'},
+                                                                    time_limit=1)
         performance_tests['perf-in-8.txt'] = TestConfiguration.from_file('perf-in-8.txt',
-                                                        'perf-out-8.txt',
-                                                        check_stderr=False,
-                                                        environ={'DEBUG': '0'},
-                                                        time_limit=1)
+                                                                         'perf-out-8.txt',
+                                                                         check_stderr=False,
+                                                                         environ={
+                                                                             'DEBUG': '0'},
+                                                                         time_limit=1)
         performance_tests['perf-in-9.txt'] = TestConfiguration.from_file('perf-in-9.txt',
-                                                        'perf-out-9.txt',
-                                                        check_stderr=False,
-                                                        environ={'DEBUG': '0'},
-                                                        time_limit=2)
+                                                                         'perf-out-9.txt',
+                                                                         check_stderr=False,
+                                                                         environ={
+                                                                             'DEBUG': '0'},
+                                                                         time_limit=2)
         performance_tests['perf-in-10.txt'] = TestConfiguration.from_file('perf-in-10.txt',
-                                                        'perf-out-10.txt',
-                                                        check_stderr=False,
-                                                        environ={'DEBUG': '0'},
-                                                        time_limit=3)
+                                                                          'perf-out-10.txt',
+                                                                          check_stderr=False,
+                                                                          environ={
+                                                                              'DEBUG': '0'},
+                                                                          time_limit=3)
         performance_tests['perf-in-11.txt'] = TestConfiguration.from_file('perf-in-11.txt',
-                                                        'perf-out-11.txt',
-                                                        check_stderr=False,
-                                                        environ={'DEBUG': '0'},
-                                                        time_limit=3)
+                                                                          'perf-out-11.txt',
+                                                                          check_stderr=False,
+                                                                          environ={
+                                                                              'DEBUG': '0'},
+                                                                          time_limit=3)
         performance_tests['perf-in-12.txt'] = TestConfiguration.from_file('perf-in-12.txt',
-                                                        'perf-out-12.txt',
-                                                        check_stderr=False,
-                                                        environ={'DEBUG': '0'},
-                                                        time_limit=45)
+                                                                          'perf-out-12.txt',
+                                                                          check_stderr=False,
+                                                                          environ={
+                                                                              'DEBUG': '0'},
+                                                                          time_limit=45)
         performance_tests['perf-in-13.txt'] = TestConfiguration.from_file('perf-in-13.txt',
-                                                        'perf-out-13.txt',
-                                                        check_stderr=False,
-                                                        environ={'DEBUG': '0'},
-                                                        time_limit=70)
+                                                                          'perf-out-13.txt',
+                                                                          check_stderr=False,
+                                                                          environ={
+                                                                              'DEBUG': '0'},
+                                                                          time_limit=70)
 
-        perf_tester = TesteBuscaExaustivaPerf('./busca-global-perf5', performance_tests)
+        perf_tester = TesteBuscaExaustivaPerf(
+            './busca-global-perf5', performance_tests)
         res = perf_tester.main()
         os.chdir('..')
         return res
@@ -526,24 +591,28 @@ def testa_busca_local_omp_perf():
         compila_programa('cpp', 'busca-local-perf-omp', '-fopenmp')
         performance_tests = {}
         performance_tests['in10.txt'] = TestConfiguration.from_file('in-10.txt',
-                                                        '',
-                                                        check_stderr=False,
-                                                        environ={'DEBUG': '0'},
-                                                        time_limit=0.5)
+                                                                    '',
+                                                                    check_stderr=False,
+                                                                    environ={
+                                                                        'DEBUG': '0'},
+                                                                    time_limit=0.5)
 
         performance_tests['in11.txt'] = TestConfiguration.from_file('perf-in-11.txt',
-                                                        '',
-                                                        check_stderr=False,
-                                                        environ={'DEBUG': '0'},
-                                                        time_limit=3)
+                                                                    '',
+                                                                    check_stderr=False,
+                                                                    environ={
+                                                                        'DEBUG': '0'},
+                                                                    time_limit=3)
 
         performance_tests['in12.txt'] = TestConfiguration.from_file('perf-in-12.txt',
-                                                        '',
-                                                        check_stderr=False,
-                                                        environ={'DEBUG': '0'},
-                                                        time_limit=60)
+                                                                    '',
+                                                                    check_stderr=False,
+                                                                    environ={
+                                                                        'DEBUG': '0'},
+                                                                    time_limit=60)
 
-        perf_tester = TestePerformance('./busca-local-perf-omp', performance_tests)
+        perf_tester = TestePerformance(
+            './busca-local-perf-omp', performance_tests)
         res = perf_tester.main()
         os.chdir('..')
         return res
@@ -586,7 +655,8 @@ Rubrica D
         with open('feedback-local.txt', 'w') as f:
             with redirect_stdout(f):
                 res_busca_local_sequencial = testa_busca_local_sequencial()
-        print(f'Busca local (sequencial): {test_result(res_busca_local_sequencial)}')
+        print(
+            f'Busca local (sequencial): {test_result(res_busca_local_sequencial)}')
 
     if os.path.exists('busca-exaustiva'):
         with open('feedback-global.txt', 'w') as f:
@@ -598,13 +668,14 @@ Rubrica D
         with open('feedback-local-paralela.txt', 'w') as f:
             with redirect_stdout(f):
                 res_busca_local_paralela = testa_busca_local_omp()
-        print(f'Busca local (paralela): {test_result(res_busca_local_paralela)}')
-        
+        print(
+            f'Busca local (paralela): {test_result(res_busca_local_paralela)}')
+
         with open('feedback-local-gpu.txt', 'w') as f:
             with redirect_stdout(f):
                 res_busca_local_gpu = testa_busca_local_gpu()
         print(f'Busca local (GPU): {test_result(res_busca_local_gpu)}')
-    
+
     print('''===========================================
 Rubrica A+
 ===========================================''')
@@ -613,40 +684,48 @@ Rubrica A+
         with open('feedback-local-perf.txt', 'w') as f:
             with redirect_stdout(f):
                 res_busca_local_perf = testa_busca_local_perf()
-        print(f'Busca local (desempenho sequencial): {test_result(res_busca_local_perf)}')
+        print(
+            f'Busca local (desempenho sequencial): {test_result(res_busca_local_perf)}')
 
         with open('feedback-local-perf-omp.txt', 'w') as f:
             with redirect_stdout(f):
                 res_busca_local_omp_perf = testa_busca_local_omp_perf()
-        print(f'Busca local (desempenho paralelo 1): {test_result(res_busca_local_omp_perf)}')
+        print(
+            f'Busca local (desempenho paralelo 1): {test_result(res_busca_local_omp_perf)}')
 
         with open('feedback-local-perf-gpu2.txt', 'w') as f:
             with redirect_stdout(f):
                 res_busca_local_perf_gpu = testa_busca_local_gpu2()
-        print(f'Busca local (desempenho GPU 1): {test_result(res_busca_local_perf_gpu)}')
+        print(
+            f'Busca local (desempenho GPU 1): {test_result(res_busca_local_perf_gpu)}')
 
     if os.path.exists('busca-exaustiva'):
         with open('feedback-global-perf.txt', 'w') as f:
             with redirect_stdout(f):
                 res_busca_global_p1 = testa_busca_exaustiva_perf1()
-        print(f'Busca global (desempenho nível 1): {test_result(res_busca_global_p1)}')
+        print(
+            f'Busca global (desempenho nível 1): {test_result(res_busca_global_p1)}')
 
         with open('feedback-global-perf2.txt', 'w') as f:
             with redirect_stdout(f):
                 res_busca_global_p2 = testa_busca_exaustiva_perf2()
-        print(f'Busca global (desempenho nível 2): {test_result(res_busca_global_p2)}')
+        print(
+            f'Busca global (desempenho nível 2): {test_result(res_busca_global_p2)}')
 
         with open('feedback-global-perf3.txt', 'w') as f:
             with redirect_stdout(f):
                 res_busca_global_p3 = testa_busca_exaustiva_perf3()
-        print(f'Busca global (desempenho nível 3): {test_result(res_busca_global_p3)}')
+        print(
+            f'Busca global (desempenho nível 3): {test_result(res_busca_global_p3)}')
 
         with open('feedback-global-perf4.txt', 'w') as f:
             with redirect_stdout(f):
                 res_busca_global_p4 = testa_busca_exaustiva_perf4()
-        print(f'Busca global (desempenho nível 4): {test_result(res_busca_global_p4)}')
+        print(
+            f'Busca global (desempenho nível 4): {test_result(res_busca_global_p4)}')
 
         with open('feedback-global-perf5.txt', 'w') as f:
             with redirect_stdout(f):
                 res_busca_global_p5 = testa_busca_exaustiva_perf5()
-        print(f'Busca global (desempenho nível 5): {test_result(res_busca_global_p5)}')
+        print(
+            f'Busca global (desempenho nível 5): {test_result(res_busca_global_p5)}')
