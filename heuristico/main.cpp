@@ -14,6 +14,7 @@ float dist(city a, city b)
     return sqrt(pow(a.x - b.x, 2) + pow(a.y - b.y, 2) * 1.0);
 }
 
+
 void format_output(float total_dist, vector<int> visited_cities)
 {
     cout << total_dist;
