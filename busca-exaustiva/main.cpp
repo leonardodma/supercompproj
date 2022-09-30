@@ -52,6 +52,7 @@ float get_total_dist(vector<city> vector_cities)
 
 vector<city> global_min(vector<city> possible_cities, vector<city> current_path, int &leafs)
 {
+    // If there are no more possible cities to visit, return the current path (the best path)
     if (possible_cities.size() == 0)
     {
         leafs++;
@@ -61,14 +62,20 @@ vector<city> global_min(vector<city> possible_cities, vector<city> current_path,
     vector<vector<city>> children_paths(possible_cities.size());
     for (size_t i = 0; i < possible_cities.size(); i++)
     {
+        // New path will add a city from de possible cities to visit vector
         vector<city> new_path = current_path;
         new_path.push_back(possible_cities[i]);
+
+        // Possible cities do visit will be the same, but without the city that was added to the path
         vector<city> new_possible_cities = possible_cities;
         new_possible_cities.erase(new_possible_cities.begin() + i);
 
+        // Recursive call to the function
+        // Put all children paths in a vector
         children_paths[i] = global_min(new_possible_cities, new_path, leafs);
     }
 
+    // Get the best path from the children paths (more economical than returning all paths)
     vector<city> best_children_path = children_paths[0];
     float best_children_dist = get_total_dist(best_children_path);
 
