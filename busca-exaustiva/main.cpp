@@ -110,7 +110,7 @@ vector<city> global_min(vector<city> possible_cities, vector<city> current_path,
     return best_children_path;
 }
 
-int factorial(int n)
+int factorial(size_t n)
 {
     // https://www.geeksforgeeks.org/program-for-factorial-of-a-number/
     return (n == 1 || n == 0) ? 1 : n * factorial(n - 1);
@@ -138,11 +138,15 @@ int main(int argc, char const *argv[])
 
     // Put cities in a vector
     vector<city> vector_cities(array_cities, array_cities + num_cities);
+
+    // Get the best path
     int leafs = 0;
     float best_distance = 10000000.0;
     vector<city> best_path = global_min(vector_cities, vector<city>(), best_distance, leafs);
+
+    // Format the output
     int total_leafs = factorial(vector_cities.size());
-    cerr << "num_neafs " << total_leafs << endl;
+    cerr << "num_leafs " << total_leafs << endl;
     float total_dist = get_total_dist(best_path);
     format_output(total_dist, best_path);
 
