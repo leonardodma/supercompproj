@@ -50,29 +50,47 @@ float get_total_dist(vector<city> vector_cities)
     return total_distance;
 }
 
-vector<city> global_min(vector<city> possible_cities, vector<city> current_path, int &leafs)
+vector<city> global_min(vector<city> possible_cities, vector<city> current_path, float &best_distance, int &leafs)
 {
     // If there are no more possible cities to visit, return the current path (the best path)
     if (possible_cities.size() == 0)
     {
         leafs++;
+        float current_distance = get_total_dist(current_path);
+        if (current_distance < best_distance)
+        {
+            best_distance = current_distance;
+        }
+
         return current_path;
     }
 
-    vector<vector<city>> children_paths(possible_cities.size());
+    vector<vector<city>> children_paths;
     for (size_t i = 0; i < possible_cities.size(); i++)
     {
         // New path will add a city from de possible cities to visit vector
         vector<city> new_path = current_path;
         new_path.push_back(possible_cities[i]);
 
-        // Possible cities do visit will be the same, but without the city that was added to the path
-        vector<city> new_possible_cities = possible_cities;
-        new_possible_cities.erase(new_possible_cities.begin() + i);
+        if (get_total_dist(new_path) < best_distance)
+        {
+            // Possible cities do visit will be the same, but without the city that was added to the path
+            vector<city> new_possible_cities = possible_cities;
+            new_possible_cities.erase(new_possible_cities.begin() + i);
 
-        // Recursive call to the function
-        // Put all children paths in a vector
-        children_paths[i] = global_min(new_possible_cities, new_path, leafs);
+            // Recursive call to the function
+            // Put all children paths in a vector
+            children_paths.push_back(global_min(new_possible_cities, new_path, best_distance, leafs));
+        }
+    }
+
+    if (children_paths.size() == 0 && leafs > 0)
+    {
+        for (size_t i = 0; i < possible_cities.size(); i++)
+        {
+            current_path.push_back(possible_cities[i]);
+        }
+        return current_path;
     }
 
     // Get the best path from the children paths (more economical than returning all paths)
@@ -90,6 +108,12 @@ vector<city> global_min(vector<city> possible_cities, vector<city> current_path,
     }
 
     return best_children_path;
+}
+
+int factorial(size_t n)
+{
+    // https://www.geeksforgeeks.org/program-for-factorial-of-a-number/
+    return (n == 1 || n == 0) ? 1 : n * factorial(n - 1);
 }
 
 int main(int argc, char const *argv[])
@@ -114,9 +138,15 @@ int main(int argc, char const *argv[])
 
     // Put cities in a vector
     vector<city> vector_cities(array_cities, array_cities + num_cities);
+
+    // Get the best path
     int leafs = 0;
-    vector<city> best_path = global_min(vector_cities, vector<city>(), leafs);
-    cerr << "num_neafs " << leafs << endl;
+    float best_distance = 10000000.0;
+    vector<city> best_path = global_min(vector_cities, vector<city>(), best_distance, leafs);
+
+    // Format the output
+    int total_leafs = factorial(vector_cities.size());
+    cerr << "num_leafs " << total_leafs << endl;
     float total_dist = get_total_dist(best_path);
     format_output(total_dist, best_path);
 
