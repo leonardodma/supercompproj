@@ -67,11 +67,17 @@ int main(int argc, char const *argv[])
     // Defining seed
     unsigned seed = 10;
     default_random_engine generator(seed);
+
     // Put cities in a vector
     vector<city> vector_cities(array_cities, array_cities + num_cities);
     vector<city> best_solution = vector_cities;
     float best_distance = total_dist(best_solution);
 
+#ifdef _OPENMP
+    // código específico para multi-core aqui
+
+#else
+    // código específico para sequencia aqui
     for (int i = 0; i < num_solutions; i++)
     {
         vector<city> current_solution = vector_cities;
@@ -106,6 +112,7 @@ int main(int argc, char const *argv[])
         }
         cerr << endl;
     }
+#endif
 
     // Print output
     format_output(best_distance, best_solution);
