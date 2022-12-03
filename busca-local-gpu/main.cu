@@ -4,7 +4,9 @@
 #include <thrust/transform.h>
 #include <thrust/shuffle.h>
 #include <thrust/random.h>
+#include <thrust/device_ptr.h>
 #include <iostream>
+#include <vector>
 
 using namespace std;
 
@@ -21,21 +23,79 @@ struct city
     }
 };
 
-float total_path_dist(thrust::device_vector<city> d_vector_cities)
+struct best_path
 {
-    // create another vector that is a copy of d_vector_cities, but with the first element moved to the end
-    thrust::device_vector<city> d_vector_cities_shifted(d_vector_cities.size());
-    thrust::copy(d_vector_cities.begin() + 1, d_vector_cities.end(), d_vector_cities_shifted.begin());
-    d_vector_cities_shifted[d_vector_cities_shifted.size() - 1] = d_vector_cities[0];
+    // Define the operator() that will be used by thrust::transform
+    int city_amount;
+    thrust::device_ptr<city> dp;
 
-    // Use transform to compute the distance between each pair of cities
-    thrust::device_vector<float> d_vector_distances(d_vector_cities.size());
+    best_path(thrust::device_ptr<city> dp_, int city_amount_) : dp(dp_), city_amount(city_amount_){};
 
-    // Use transform to compute the distance between each pair of cities
-    thrust::transform(d_vector_cities.begin(), d_vector_cities.end(), d_vector_cities_shifted.begin(), d_vector_distances.begin(), city());
+    __host__ __device__ float operator()(const int &id) const
+    {
+        // Get the city vector based on the id, num_interations and the device pointer
+        thrust::device_ptr<city> vector_cities_dp = dp + (id * city_amount);
+        float best_distance = 0.0;
 
-    // Use reduce to sum the distances
-    return thrust::reduce(d_vector_distances.begin(), d_vector_distances.end(), 0.0f, thrust::plus<float>());
+        // Calculate the total distance of the path
+        float total_distance = 0.0;
+        for (int i = 0; i < city_amount - 1; i++)
+        {
+            total_distance += city()(vector_cities_dp[i], vector_cities_dp[i + 1]);
+        }
+        // Sum the distance of the last city to the first city
+        total_distance += city()(vector_cities_dp[city_amount - 1], vector_cities_dp[0]);
+        best_distance = total_distance;
+
+        // Swap vector_cities_dp[i] and vector_cities_dp[i+1] and calculate the new distance
+        // If the new distance is smaller than the best distance, update the best distance
+        // Else, swap back
+        for (int i = 0; i < city_amount - 1; i++)
+        {
+            thrust::swap(vector_cities_dp[i], vector_cities_dp[i + 1]);
+            total_distance = 0;
+            for (int j = 0; j < city_amount - 1; j++)
+            {
+                total_distance += city()(vector_cities_dp[j], vector_cities_dp[j + 1]);
+            }
+            total_distance += city()(vector_cities_dp[city_amount - 1], vector_cities_dp[0]);
+            if (total_distance < best_distance)
+            {
+                best_distance = total_distance;
+            }
+            else
+            {
+                thrust::swap(vector_cities_dp[i], vector_cities_dp[i + 1]);
+            }
+        }
+
+        return best_distance;
+    }
+};
+
+float local_search(thrust::device_ptr<city> dp, int num_interations, int num_cities)
+{
+    // Crate a device vector to store to store the the indexes: 0, 1, 2, ..., num_interations
+    thrust::device_vector<int> indexes(num_interations);
+    thrust::sequence(indexes.begin(), indexes.end());
+
+    // Create a device vector to store the distances
+    thrust::device_vector<float> distances(num_interations);
+
+    // Use transform to call the best_path operator() for each index
+    thrust::transform(indexes.begin(), indexes.end(), distances.begin(), best_path(dp, num_cities));
+
+    //  Find the minimum distance
+    float min_distance = 100000000;
+    for (int i = 0; i < num_interations; i++)
+    {
+        if (distances[i] < min_distance)
+        {
+            min_distance = distances[i];
+        }
+    }
+
+    return min_distance;
 }
 
 thrust::host_vector<city> read_file(int num_cities)
@@ -67,12 +127,11 @@ int main()
     // Copy cities to device
     thrust::device_vector<city> d_vector_cities = h_vector_cities;
 
+    // Vector to store all vectors shuffled
+    thrust::device_vector<city> all_shuffled_paths(num_cities * num_solutions);
+
     // Create random number generator
     thrust::default_random_engine generator(10);
-
-    // Copy cities to device
-    thrust::device_vector<city> d_vector_cities_best = d_vector_cities;
-    float best_distance = total_path_dist(d_vector_cities_best);
 
     for (int i = 0; i < num_solutions; i++)
     {
@@ -82,45 +141,15 @@ int main()
         // Shuffle cities on device
         thrust::shuffle(d_vector_cities.begin(), d_vector_cities.end(), generator);
 
-        // Calculate distance of solution
-        float current_distance = total_path_dist(d_vector_cities_current);
-
-        // Swap j and j+1 of d_vector_cities_current to check if the distance is shorter
-        for (int j = 0; j < num_cities - 1; j++)
-        {
-            thrust::swap(d_vector_cities_current[j], d_vector_cities_current[j + 1]);
-            float new_distance = total_path_dist(d_vector_cities_current);
-
-            if (new_distance < current_distance)
-            {
-                current_distance = new_distance;
-            }
-            else
-            {
-                thrust::swap(d_vector_cities_current[j], d_vector_cities_current[j + 1]);
-            }
-        }
-
-        // If the current solution is better than the best solution, update the best solution
-        if (current_distance < best_distance)
-        {
-            d_vector_cities_best = d_vector_cities_current;
-            best_distance = current_distance;
-        }
+        // Copy shuffled cities to all_shuffled_paths
+        thrust::copy(d_vector_cities.begin(), d_vector_cities.end(), all_shuffled_paths.begin() + i * num_cities);
     }
 
-    // Copy best solution to host
-    thrust::host_vector<city> h_vector_cities_best = d_vector_cities_best;
+    // Get pointer to all_shuffled_paths
+    thrust::device_ptr<city> dp = &all_shuffled_paths[0];
 
-    // Print best solution
-    cout << best_distance;
-    cout << " 0" << endl;
-    for (int j = 0; j < num_cities; j++)
-    {
-        cout << h_vector_cities_best[j].id << " ";
-    }
-
-    cout << endl;
+    float min_distance = local_search(dp, num_solutions, num_cities);
+    cout << "Min distance: " << min_distance << endl;
 
     return 0;
 }

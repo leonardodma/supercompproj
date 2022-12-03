@@ -73,10 +73,6 @@ int main(int argc, char const *argv[])
     vector<city> best_solution = vector_cities;
     float best_distance = total_dist(best_solution);
 
-#ifdef _OPENMP
-    // código específico para multi-core aqui
-
-#else
     // código específico para sequencia aqui
     for (int i = 0; i < num_solutions; i++)
     {
@@ -105,17 +101,16 @@ int main(int argc, char const *argv[])
         }
 
         // Cout error
-        cerr << "local: " << current_distance << " ";
+        /* cerr << "local: " << current_distance << " ";
         for (size_t k = 0; k < current_solution.size(); k++)
         {
             cerr << current_solution[k].id << " ";
         }
-        cerr << endl;
+        cerr << endl; */
+
+        // Print output
+        format_output(best_distance, best_solution);
+
+        return 0;
     }
-#endif
-
-    // Print output
-    format_output(best_distance, best_solution);
-
-    return 0;
 }
