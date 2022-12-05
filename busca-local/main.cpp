@@ -99,18 +99,10 @@ int main(int argc, char const *argv[])
             best_distance = current_distance;
             best_solution = current_solution;
         }
-
-        // Cout error
-        /* cerr << "local: " << current_distance << " ";
-        for (size_t k = 0; k < current_solution.size(); k++)
-        {
-            cerr << current_solution[k].id << " ";
-        }
-        cerr << endl; */
-
-        // Print output
-        format_output(best_distance, best_solution);
-
-        return 0;
     }
+
+    // Print output
+    format_output(best_distance, best_solution);
+
+    return 0;
 }
